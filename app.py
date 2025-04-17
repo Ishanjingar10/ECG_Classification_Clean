@@ -1,5 +1,3 @@
-# app.py (Flask backend)
-
 import os
 import logging
 import uuid
@@ -117,8 +115,12 @@ def upload_and_predict():
         if os.path.exists(file_path):
             os.remove(file_path)
 
+        # Ensure result is always JSON
         if "error" in result:
+            logging.error(f"Prediction failed: {result['error']}")
             return jsonify(result), 500
+
+        logging.info(f"Prediction result: {result}")
         return jsonify(result)
 
     except Exception as e:
@@ -128,4 +130,4 @@ def upload_and_predict():
 # Run the app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Default to 5000 if not provided by Railway
-    app.run(debug=False, host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=port)

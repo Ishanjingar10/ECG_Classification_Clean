@@ -7,8 +7,6 @@ from tkinter import filedialog, Label, Button
 from PIL import Image, ImageTk
 import tkinter.messagebox as msgbox
 import tensorflow.keras.backend as K
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 # Define focal loss function (for compatibility)
 def focal_loss(gamma=2., alpha=0.25):
@@ -20,8 +18,9 @@ def focal_loss(gamma=2., alpha=0.25):
 # Load trained model (Handle custom loss function safely)
 try:
     model = load_model("ecg_classification_model_finetuned.h5", custom_objects={'loss': focal_loss()})
-except:
+except Exception as e:
     model = load_model("ecg_classification_model_finetuned.h5", compile=False)
+    print(f"Warning: Unable to load custom loss function. Error: {e}")
 
 # Get input shape of the model
 target_size = model.input_shape[1:3]  # Extract expected size (e.g., (128, 128))

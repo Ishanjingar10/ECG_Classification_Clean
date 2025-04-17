@@ -1,20 +1,18 @@
 import os
+import logging
+import uuid
+import numpy as np
+from flask import Flask, request, jsonify, render_template
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+import gdown  # <- Make sure this is installed (pip install gdown)
+
+# Set up environment variables for Railway
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force CPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL only
 
-import numpy as np
-import tensorflow as tf
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-import logging
-import uuid
-import gdown  # <- Make sure this is installed (pip install gdown)
-
 # Initialize Flask app
 app = Flask(__name__, template_folder="templates")
-CORS(app)
 
 # Upload folder setup
 UPLOAD_FOLDER = "uploads"
@@ -23,9 +21,11 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Download model from Google Drive if not present
+# Model path and Google Drive file ID from environment variables
 model_path = "ecg_classification_model_finetuned.h5"
-drive_file_id = "1DETKYVBjgwzSXwHZvuzpgh0eiHtllohT"
+drive_file_id = os.getenv("MODEL_DRIVE_FILE_ID", "1DETKYVBjgwzSXwHZvuzpgh0eiHtllohT")  # Use environment variable for Drive file ID
+
+# Download model from Google Drive if not present
 if not os.path.exists(model_path):
     logging.info("🔽 Downloading model from Google Drive...")
     gdown.download(f"https://drive.google.com/uc?id={drive_file_id}", model_path, quiet=False)
@@ -125,5 +125,6 @@ def upload_and_predict():
 
 # Run the app
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    # Railway automatically provides the port as an environment variable, so we use it.
+    port = int(os.environ.get("PORT", 5000))  # Default to 5000 if not provided by Railway
     app.run(debug=False, host="0.0.0.0", port=port)

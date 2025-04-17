@@ -8,3 +8,4 @@ matplotlib
 flask-cors
 pillow
 tensorflow
+gdown

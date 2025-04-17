@@ -1,0 +1,10 @@
+flask
+gunicorn
+numpy
+opencv-python
+tensorflow
+matplotlib
+# (add any others you're using)
+flask-cors
+pillow
+tensorflow

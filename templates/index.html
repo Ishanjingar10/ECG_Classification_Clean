@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ECG Classification System</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #e7f0fd;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: #2a3f54;
+      margin-bottom: 30px;
+    }
+
+    form {
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    input[type="file"] {
+      margin: 15px 0;
+      padding: 10px;
+    }
+
+    button {
+      background-color: #337ab7;
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #235a9c;
+    }
+
+    .clear-button {
+      background-color: #d9534f;
+    }
+
+    .clear-button:hover {
+      background-color: #b52b27;
+    }
+
+    .result, .error {
+      margin-top: 25px;
+      width: 100%;
+      max-width: 500px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .result {
+      border-left: 6px solid #4caf50;
+    }
+
+    .error {
+      border-left: 6px solid #f44336;
+      color: #f44336;
+    }
+
+    img#preview {
+      max-width: 100%;
+      margin-top: 15px;
+      border-radius: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>ECG Classification System</h1>
+
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label for="fileInput"><strong>Select an ECG Image:</strong></label><br><br>
+    <input type="file" name="file" id="fileInput" accept="image/*" required><br><br>
+    <img id="preview" alt="Image Preview"><br>
+    <button type="submit">Predict</button>
+    <button type="button" class="clear-button" id="clearBtn">Clear</button>
+  </form>
+
+  <div class="result" id="result" style="display:none;">
+    <h2>✅ Prediction Result</h2>
+    <p><strong>Class:</strong> <span id="predictedClass"></span></p>
+    <p><strong>Confidence:</strong> <span id="confidence"></span>%</p>
+    <p><strong>Description:</strong> <span id="description"></span></p>
+  </div>
+
+  <div class="error" id="error" style="display:none;"></div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('fileInput');
+    const resultDiv = document.getElementById('result');
+    const errorDiv = document.getElementById('error');
+    const previewImg = document.getElementById('preview');
+    const clearBtn = document.getElementById('clearBtn');
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (file) {
+        previewImg.src = URL.createObjectURL(file);
+        previewImg.style.display = 'block';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      resultDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      try {
+        const response = await fetch('/predict', {
+          method: 'POST',
+          body: formData
+        });
+
+        const contentType = response.headers.get("content-type");
+
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Server returned invalid response.");
+        }
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById('predictedClass').innerText = data.class;
+          document.getElementById('confidence').innerText = data.confidence.toFixed(2);
+          document.getElementById('description').innerText = data.description;
+          resultDiv.style.display = 'block';
+        } else {
+          throw new Error(data.error || 'Prediction failed.');
+        }
+      } catch (err) {
+        errorDiv.innerText = `❌ ${err.message}`;
+        errorDiv.style.display = 'block';
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      fileInput.value = '';
+      previewImg.src = '';
+      previewImg.style.display = 'none';
+      resultDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

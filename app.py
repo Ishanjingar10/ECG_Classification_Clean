@@ -1,18 +1,20 @@
-import os
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import logging
 import uuid
+import os
 import numpy as np
-from flask import Flask, request, jsonify, render_template
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-import gdown  # <- Make sure this is installed (pip install gdown)
+from tensorflow.keras.preprocessing.image import load_img, img_to_array  # Importing these here
+import gdown
 
-# Set up environment variables for Railway
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Force CPU
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL only
+# Set up environment for using CPU (optional, in case GPU isn't available)
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Initialize Flask app
 app = Flask(__name__, template_folder="templates")
+CORS(app)  # Enable CORS for the app
 
 # Upload folder setup
 UPLOAD_FOLDER = "uploads"
@@ -21,20 +23,25 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Model path and Google Drive file ID from environment variables
+# Google Drive link for the model (with the correct file ID)
+google_drive_model_url = "https://drive.google.com/uc?id=1DETKYVBjgwzSXwHZvuzpgh0eiHtllohT"
 model_path = "ecg_classification_model_finetuned.h5"
-drive_file_id = os.getenv("MODEL_DRIVE_FILE_ID", "1DETKYVBjgwzSXwHZvuzpgh0eiHtllohT")  # Use environment variable for Drive file ID
 
-# Download model from Google Drive if not present
-if not os.path.exists(model_path):
-    logging.info("🔽 Downloading model from Google Drive...")
-    gdown.download(f"https://drive.google.com/uc?id={drive_file_id}", model_path, quiet=False)
-else:
-    logging.info("📁 Model file found locally.")
+# Download model from Google Drive
+def download_model():
+    try:
+        # Download the model from Google Drive using gdown
+        logging.info(f"Downloading model from Google Drive...")
+        gdown.download(google_drive_model_url, model_path, quiet=False)
+        logging.info("✅ Model downloaded successfully!")
+    except Exception as e:
+        logging.error(f"❌ Error downloading model: {e}")
+        raise e
 
-# Load the model
+# Load the model (assuming it is already downloaded)
 model = None
 try:
+    download_model()  # Ensure the model is downloaded
     model = load_model(model_path, compile=False)
     logging.info("✅ Model loaded successfully!")
 except Exception as e:
@@ -91,7 +98,7 @@ def predict_ecg(image_path):
 # Home page
 @app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html")
+    return render_template("index.html")  # Serve the HTML from the templates folder
 
 # Upload and prediction route
 @app.route("/predict", methods=["POST"])
@@ -129,5 +136,4 @@ def upload_and_predict():
 
 # Run the app
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Default to 5000 if not provided by Railway
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=5000)  # Render will manage the hosting (use the default port 5000)

@@ -125,6 +125,12 @@
       resultDiv.style.display = 'none';
       errorDiv.style.display = 'none';
 
+      if (!fileInput.files[0]) {
+        errorDiv.innerText = "❌ No file selected. Please upload an ECG image.";
+        errorDiv.style.display = 'block';
+        return;
+      }
+
       const formData = new FormData();
       formData.append('file', fileInput.files[0]);
 
@@ -137,7 +143,7 @@
         const contentType = response.headers.get("content-type");
 
         if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Server returned invalid response.");
+          throw new Error("Server returned invalid response. Expected JSON.");
         }
 
         const data = await response.json();
@@ -148,7 +154,7 @@
           document.getElementById('description').innerText = data.description;
           resultDiv.style.display = 'block';
         } else {
-          throw new Error(data.error || 'Prediction failed.');
+          throw new Error(data.error || 'Prediction failed. Please try again.');
         }
       } catch (err) {
         errorDiv.innerText = `❌ ${err.message}`;

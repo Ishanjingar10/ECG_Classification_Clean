@@ -3,5 +3,10 @@ services:
     name: ecg-classifier
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    startCommand: "gunicorn app:app --workers=1 --threads=1 --timeout 300"
     plan: free
+    envVars:
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "3"
+      - key: CUDA_VISIBLE_DEVICES
+        value: "-1"

@@ -154,71 +154,71 @@
   </div>
 
   <script>
-    const form = document.getElementById("uploadForm");
-    const fileInput = document.getElementById("fileInput");
-    const imagePreview = document.getElementById("imagePreview");
-    const resultBox = document.getElementById("resultBox");
-    const errorBox = document.getElementById("errorBox");
-    const loading = document.getElementById("loading");
-  
-    fileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      resultBox.style.display = "none";
-      errorBox.style.display = "none";
+  const form = document.getElementById("uploadForm");
+  const fileInput = document.getElementById("fileInput");
+  const imagePreview = document.getElementById("imagePreview");
+  const resultBox = document.getElementById("resultBox");
+  const errorBox = document.getElementById("errorBox");
+  const loading = document.getElementById("loading");
+
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    resultBox.style.display = "none";
+    errorBox.style.display = "none";
+    loading.style.display = "none";
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        imagePreview.src = event.target.result;
+        imagePreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    resultBox.style.display = "none";
+    errorBox.style.display = "none";
+    loading.style.display = "block";
+
+    const file = fileInput.files[0];
+    if (!file) {
       loading.style.display = "none";
-  
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (event) {
-          imagePreview.src = event.target.result;
-          imagePreview.style.display = "block";
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-  
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      resultBox.style.display = "none";
-      errorBox.style.display = "none";
-      loading.style.display = "block";
-  
-      const file = fileInput.files[0];
-      if (!file) {
-        loading.style.display = "none";
-        errorBox.innerText = "Please select a file.";
-        errorBox.style.display = "block";
-        return;
-      }
-  
-      const formData = new FormData();
-      formData.append("file", file);
-  
-      try {
-        const res = await fetch("http://localhost:5000/predict", {
-          method: "POST",
-          body: formData,
-        });
-  
-        const data = await res.json();
-        loading.style.display = "none";
-  
-        if (res.ok) {
-          document.getElementById("classOut").innerText = data.class;
-          document.getElementById("confidenceOut").innerText = data.confidence.toFixed(2);
-          document.getElementById("descOut").innerText = data.description;
-          resultBox.style.display = "block";
-        } else {
-          errorBox.innerText = data.error || "Prediction failed.";
-          errorBox.style.display = "block";
-        }
-      } catch (err) {
-        loading.style.display = "none";
-        errorBox.innerText = "Something went wrong: " + err.message;
+      errorBox.innerText = "Please select a file.";
+      errorBox.style.display = "block";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("https://ecg-classification-clean.onrender.com", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      loading.style.display = "none";
+
+      if (res.ok) {
+        document.getElementById("classOut").innerText = data.class;
+        document.getElementById("confidenceOut").innerText = data.confidence.toFixed(2);
+        document.getElementById("descOut").innerText = data.description;
+        resultBox.style.display = "block";
+      } else {
+        errorBox.innerText = data.error || "Prediction failed.";
         errorBox.style.display = "block";
       }
-    });
-  </script>
-  
+    } catch (err) {
+      loading.style.display = "none";
+      errorBox.innerText = "Something went wrong: " + err.message;
+      errorBox.style.display = "block";
+    }
+  });
+</script>
+
 </body>
 </html>

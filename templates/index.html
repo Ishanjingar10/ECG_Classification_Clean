@@ -160,13 +160,13 @@
     const resultBox = document.getElementById("resultBox");
     const errorBox = document.getElementById("errorBox");
     const loading = document.getElementById("loading");
-
+  
     fileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       resultBox.style.display = "none";
       errorBox.style.display = "none";
       loading.style.display = "none";
-
+  
       if (file) {
         const reader = new FileReader();
         reader.onload = function (event) {
@@ -176,13 +176,13 @@
         reader.readAsDataURL(file);
       }
     });
-
+  
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       resultBox.style.display = "none";
       errorBox.style.display = "none";
       loading.style.display = "block";
-
+  
       const file = fileInput.files[0];
       if (!file) {
         loading.style.display = "none";
@@ -190,19 +190,19 @@
         errorBox.style.display = "block";
         return;
       }
-
+  
       const formData = new FormData();
       formData.append("file", file);
-
+  
       try {
-        const res = await fetch("https://ecg-classification-clean.onrender.com/predict", {
+        const res = await fetch("http://localhost:5000/predict", {
           method: "POST",
           body: formData,
         });
-
+  
         const data = await res.json();
         loading.style.display = "none";
-
+  
         if (res.ok) {
           document.getElementById("classOut").innerText = data.class;
           document.getElementById("confidenceOut").innerText = data.confidence.toFixed(2);
@@ -219,5 +219,6 @@
       }
     });
   </script>
+  
 </body>
 </html>

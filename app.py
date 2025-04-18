@@ -4,15 +4,18 @@ import logging
 import uuid
 import os
 import numpy as np
+import gc
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 import gdown
 
-# Set up environment for using CPU
+# Set up environment to force CPU usage
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+# Flask app setup
 app = Flask(__name__, template_folder="templates")
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # Max upload size: 2MB
 CORS(app)
 
 UPLOAD_FOLDER = "uploads"
@@ -21,29 +24,12 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Google Drive model
+# Model URL and path
 google_drive_model_url = "https://drive.google.com/uc?id=1DETKYVBjgwzSXwHZvuzpgh0eiHtllohT"
 model_path = "ecg_classification_model_finetuned.h5"
+model = None  # Global model reference
 
-def download_model():
-    try:
-        logging.info("Downloading model from Google Drive...")
-        gdown.download(google_drive_model_url, model_path, quiet=False)
-        logging.info("✅ Model downloaded successfully!")
-    except Exception as e:
-        logging.error(f"❌ Error downloading model: {e}")
-        raise e
-
-# Load the model
-model = None
-try:
-    download_model()
-    model = load_model(model_path, compile=False)
-    logging.info("✅ Model loaded successfully!")
-except Exception as e:
-    logging.error(f"❌ Error loading model: {e}")
-
-# Classes and descriptions
+# Class info
 class_info = {
     "Fusion Beats (F)": "A combination of normal and abnormal beats, often seen in conditions like Ventricular Fusion Beats.",
     "Miscellaneous Beats (M)": "Irregular beats that do not fit standard categories.",
@@ -55,14 +41,34 @@ class_info = {
 class_labels = list(class_info.keys())
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
+# Download the model if not already downloaded
+def download_model():
+    try:
+        if not os.path.exists(model_path):
+            logging.info("Downloading model from Google Drive...")
+            gdown.download(google_drive_model_url, model_path, quiet=False)
+            logging.info("✅ Model downloaded successfully!")
+    except Exception as e:
+        logging.error(f"❌ Error downloading model: {e}")
+        raise e
+
+# Lazy-load the model only when needed
+def get_model():
+    global model
+    if model is None:
+        download_model()
+        model = load_model(model_path, compile=False)
+        logging.info("✅ Model loaded successfully!")
+    return model
+
+# File extension check
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# 💡 Prediction helper function
+# Prediction helper
 def predict_ecg_from_path(image_path):
     try:
-        if model is None:
-            return {"error": "Model not loaded."}
+        model = get_model()
 
         img = load_img(image_path, target_size=(128, 128), color_mode="rgb")
         img_array = img_to_array(img) / 255.0
@@ -76,23 +82,29 @@ def predict_ecg_from_path(image_path):
             predicted_class = class_labels[predicted_index]
             confidence = float(np.max(prediction) * 100)
             description = class_info.get(predicted_class, "No description available.")
-            return {
+            result = {
                 "class": predicted_class,
                 "confidence": confidence,
                 "description": description
             }
         else:
-            return {"error": "Prediction output mismatch with class labels."}
+            result = {"error": "Prediction output mismatch with class labels."}
+
+        # Memory cleanup
+        del img, img_array, prediction
+        gc.collect()
+
+        return result
+
     except Exception as e:
         logging.exception("Prediction error")
         return {"error": f"Prediction error: {e}"}
 
-# Home route
+# Routes
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
 
-# 🔥 Main /predict route (used by your HTML form)
 @app.route("/predict", methods=["POST"])
 def upload_and_predict():
     try:
@@ -110,6 +122,7 @@ def upload_and_predict():
 
         result = predict_ecg_from_path(file_path)
 
+        # Delete uploaded file
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -124,6 +137,6 @@ def upload_and_predict():
         logging.exception("❌ Unexpected error in /predict")
         return jsonify({"error": f"Unexpected error: {e}"}), 500
 
-# Run the Flask app
+# Run the app
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

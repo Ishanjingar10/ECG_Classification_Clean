@@ -195,7 +195,7 @@
       formData.append("file", file);
 
       try {
-        const res = await fetch("/predict", {
+        const res = await fetch("https://ecg-classification-clean.onrender.com/predict", {
           method: "POST",
           body: formData,
         });

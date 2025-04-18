@@ -5,49 +5,45 @@ import uuid
 import os
 import numpy as np
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array  # Importing these here
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
 import gdown
 
-# Set up environment for using CPU (optional, in case GPU isn't available)
+# Set up environment for using CPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-# Initialize Flask app
 app = Flask(__name__, template_folder="templates")
-CORS(app)  # Enable CORS for the app
+CORS(app)
 
-# Upload folder setup
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Logging configuration
+# Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Google Drive link for the model (with the correct file ID)
+# Google Drive model
 google_drive_model_url = "https://drive.google.com/uc?id=1DETKYVBjgwzSXwHZvuzpgh0eiHtllohT"
 model_path = "ecg_classification_model_finetuned.h5"
 
-# Download model from Google Drive
 def download_model():
     try:
-        # Download the model from Google Drive using gdown
-        logging.info(f"Downloading model from Google Drive...")
+        logging.info("Downloading model from Google Drive...")
         gdown.download(google_drive_model_url, model_path, quiet=False)
         logging.info("✅ Model downloaded successfully!")
     except Exception as e:
         logging.error(f"❌ Error downloading model: {e}")
         raise e
 
-# Load the model (assuming it is already downloaded)
+# Load the model
 model = None
 try:
-    download_model()  # Ensure the model is downloaded
+    download_model()
     model = load_model(model_path, compile=False)
     logging.info("✅ Model loaded successfully!")
 except Exception as e:
     logging.error(f"❌ Error loading model: {e}")
 
-# Class labels and descriptions
+# Classes and descriptions
 class_info = {
     "Fusion Beats (F)": "A combination of normal and abnormal beats, often seen in conditions like Ventricular Fusion Beats.",
     "Miscellaneous Beats (M)": "Irregular beats that do not fit standard categories.",
@@ -57,18 +53,15 @@ class_info = {
     "Ventricular Beats (V)": "Abnormal beats originating from the ventricles, often indicating serious arrhythmias."
 }
 class_labels = list(class_info.keys())
-
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Prediction logic
-@app.route("/predict", methods=["POST"])
-def predict_ecg(image_path):
+# 💡 Prediction helper function
+def predict_ecg_from_path(image_path):
     try:
         if model is None:
-            logging.error("Model is not loaded.")
             return {"error": "Model not loaded."}
 
         img = load_img(image_path, target_size=(128, 128), color_mode="rgb")
@@ -89,19 +82,17 @@ def predict_ecg(image_path):
                 "description": description
             }
         else:
-            logging.error("Prediction output shape mismatch.")
             return {"error": "Prediction output mismatch with class labels."}
-
     except Exception as e:
         logging.exception("Prediction error")
         return {"error": f"Prediction error: {e}"}
 
-# Home page
+# Home route
 @app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html")  # Serve the HTML from the templates folder
+    return render_template("index.html")
 
-# Upload and prediction route
+# 🔥 Main /predict route (used by your HTML form)
 @app.route("/predict", methods=["POST"])
 def upload_and_predict():
     try:
@@ -114,16 +105,14 @@ def upload_and_predict():
 
         unique_filename = f"{uuid.uuid4().hex}_{file.filename}"
         file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-
         file.save(file_path)
         logging.info(f"Image saved to {file_path}")
 
-        result = predict_ecg(file_path)
+        result = predict_ecg_from_path(file_path)
 
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        # Ensure result is always JSON
         if "error" in result:
             logging.error(f"Prediction failed: {result['error']}")
             return jsonify(result), 500
@@ -135,6 +124,6 @@ def upload_and_predict():
         logging.exception("❌ Unexpected error in /predict")
         return jsonify({"error": f"Unexpected error: {e}"}), 500
 
-# Run the app
+# Run the Flask app
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)  # Render will manage the hosting (use the default port 5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
